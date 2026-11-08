@@ -1,0 +1,144 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Pick Path</title>
+  <meta name="description" content="Warehouse slotting and order picking for a made-up e-commerce fulfillment center: where each SKU goes, how pickers walk, and what it costs in meters and labor hours. Compares random, ABC, COI, and affinity slotting, five routing heuristics against the exact route, and single order, batch, and zone picking.">
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+  <header class="top">
+    <div>
+      <h1>Pick Path</h1>
+      <p class="sub">The pick area of Fernhill Supply, a made-up online retailer: parallel aisles of shelving, 3,000 SKUs, and a day of 5,000 orders. Where should each SKU live, how should a picker walk, and how many labor hours does the day take?</p>
+    </div>
+    <div class="actions">
+      <button type="button" id="share">Copy share link</button>
+      <button type="button" id="reset" class="ghost">Reset</button>
+    </div>
+  </header>
+
+  <main class="layout">
+    <form id="form" class="panel" autocomplete="off"></form>
+
+    <section class="results">
+      <div class="panel rec">
+        <div class="chart-head"><h2>The day</h2><span class="hint tl-run" id="status"></span></div>
+        <p id="rec" class="rec-text">Computing...</p>
+      </div>
+
+      <div class="cards" id="cards"></div>
+
+      <div class="panel">
+        <div class="chart-head">
+          <h2>Pick area</h2>
+          <div class="tabs" id="view-tabs" role="tablist" aria-label="Map coloring">
+            <button type="button" class="tab" role="tab" data-view="class">Velocity class</button>
+            <button type="button" class="tab" role="tab" data-view="heat">Pick density</button>
+          </div>
+        </div>
+        <div class="subtabs">
+          <div class="tabs" id="route-tabs" role="tablist" aria-label="Route"></div>
+        </div>
+        <div class="subtabs">
+          <div class="trip-nav">
+            <button type="button" class="ghost" id="prev" aria-label="Previous trip">Prev</button>
+            <button type="button" class="ghost" id="next" aria-label="Next trip">Next</button>
+            <button type="button" class="ghost" id="busy">Pick a bigger trip</button>
+            <span class="trip-label" id="trip-label"></span>
+          </div>
+        </div>
+        <ul class="legend" id="map-legend"></ul>
+        <div class="chart-wrap map-wrap"><svg id="map" class="chart map" role="img" aria-label="Top-down warehouse map with slots, the depot, and the selected route"></svg><div class="tooltip" hidden></div></div>
+        <p class="hint" id="map-note"></p>
+        <div class="table-scroll trip-table">
+          <table class="items" id="trip-table">
+            <thead><tr>
+              <th>Route for this trip</th>
+              <th class="num">Meters</th>
+              <th class="num" title="Meters over the exact shortest route">Over exact</th>
+              <th class="num" title="Walking at the set speed">Walk time</th>
+            </tr></thead>
+            <tbody id="trip-rows"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="chart-head"><h2>Slotting x routing</h2><span class="hint tl-run">single order picking, meters walked per order</span></div>
+        <div class="table-scroll">
+          <table class="items" id="matrix">
+            <thead id="matrix-head"></thead>
+            <tbody id="matrix-rows"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="matrix-note"></p>
+      </div>
+
+      <div class="panel">
+        <div class="chart-head"><h2>Routing heuristics</h2><span class="hint tl-run" id="routing-sub"></span></div>
+        <div class="table-scroll">
+          <table class="items">
+            <thead><tr>
+              <th>Heuristic</th>
+              <th class="num">m per order</th>
+              <th class="num">m per line</th>
+              <th class="num" title="Total meters over the exact route's meters, on orders with at most 12 distinct locations">Gap to exact</th>
+              <th class="num" title="Share of those orders where the heuristic walks the exact shortest route">Exact on</th>
+              <th class="num" title="Lines picked per labor hour, walking, picking, and setup included">Picks per hour</th>
+              <th class="num" title="Labor hours for the day">Labor h</th>
+            </tr></thead>
+            <tbody id="routing-rows"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="routing-note"></p>
+      </div>
+
+      <div class="panel">
+        <div class="chart-head"><h2>Batching and zones</h2><span class="hint tl-run" id="batch-status"></span></div>
+        <div class="table-scroll">
+          <table class="items">
+            <thead><tr>
+              <th>Picking method</th>
+              <th class="num" title="Cart trips in the day">Trips</th>
+              <th class="num">m per order</th>
+              <th class="num" title="Share of labor time spent walking">Walking</th>
+              <th class="num" title="Lines picked per labor hour">Picks per hour</th>
+              <th class="num">Labor h</th>
+              <th class="num" title="Labor hours over 7.5 hour shifts">Picker shifts</th>
+            </tr></thead>
+            <tbody id="batch-rows"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="batch-note"></p>
+        <h3 class="sub-h">Cart size, seed batching</h3>
+        <div class="chart-wrap"><svg id="sweep" class="chart" role="img" aria-label="Meters walked per order by orders per cart"></svg><div class="tooltip" hidden></div></div>
+        <p class="hint" id="sweep-note"></p>
+      </div>
+
+      <div class="panel">
+        <div class="chart-head"><h2>Where the labor goes</h2></div>
+        <div class="table-scroll">
+          <table class="items">
+            <thead><tr>
+              <th>Slotting, single orders, current routing</th>
+              <th class="num">Walk h</th>
+              <th class="num">Pick h</th>
+              <th class="num" title="Cart setup, sorting into totes, and consolidation">Other h</th>
+              <th class="num" title="Average ergonomic score of the pick heights, 100 is all in the golden zone">Ergonomics</th>
+              <th class="num" title="Share of lines picked between 0.6 and 1.6 m">Golden zone</th>
+              <th class="num" title="Average walking distance between the 200 pairs ordered together most often, weighted by how often">Pair distance</th>
+            </tr></thead>
+            <tbody id="labor-rows"></tbody>
+          </table>
+        </div>
+        <p class="hint" id="labor-note"></p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="foot">Runs entirely in your browser; slotting and the day's routes run in a Web Worker. Settings are stored in the page URL so a scenario can be shared as a link. Fernhill Supply, its SKUs, and its orders are made up.</footer>
+  <script type="module" src="src/app.js"></script>
+</body>
+</html>
